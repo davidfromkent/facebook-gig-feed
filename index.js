@@ -6,7 +6,10 @@ export default async function handler(req, res) {
     const apiKey = process.env.GOOGLE_API_KEY;
     const cx = process.env.GOOGLE_CSE_ID;
 
-    const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(query)}+site:facebook.com&key=${apiKey}&cx=${cx}`;
+    // Make the query closer to what your browser search does
+    const searchQuery = `${query} site:facebook.com live music OR gig OR band OR event OR 2025 OR Kent`;
+
+    const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(searchQuery)}&key=${apiKey}&cx=${cx}`;
 
     const response = await fetch(url);
     const data = await response.json();
