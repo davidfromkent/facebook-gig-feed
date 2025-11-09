@@ -1,15 +1,13 @@
-import express from "express";
-import fetch from "node-fetch";
-import * as cheerio from "cheerio";
+const express = require("express");
+const fetch = require("node-fetch");
+const cheerio = require("cheerio");
 
 const app = express();
 
-// simple homepage
 app.get("/", (req, res) => {
   res.send("Facebook Gig Feed is running");
 });
 
-// example route: /facebook?id=Half-Moon-and-Seven-Stars-2025-61571318836321
 app.get("/facebook", async (req, res) => {
   const id = req.query.id;
   if (!id) return res.status(400).send("Missing ?id parameter");
