@@ -1,59 +1,47 @@
 const express = require("express");
 const fetch = require("node-fetch");
 const cheerio = require("cheerio");
-const Tesseract = require("tesseract.js");
 
 const app = express();
 
-app.get("/", (req, res) => res.send("Facebook Gig Feed is running with OCR support"));
+app.get("/", (req, res) => res.send("Google-based Facebook Gig Feed is running"));
 
+// Example: /facebook?id=Half+Moon+and+Seven+Stars
 app.get("/facebook", async (req, res) => {
   const id = req.query.id;
   if (!id) return res.status(400).send("Missing ?id parameter");
 
-  const url = `https://mbasic.facebook.com/${id}`;
+  // Build Google search URL
+  const query = `site:facebook.com "${id}" (live OR gig OR band OR music OR DJ)`;
+  const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+
   try {
-    const response = await fetch(url);
+    const response = await fetch(googleUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+      },
+    });
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    const posts = [];
-
-    // loop through posts
-    const articles = $("article").slice(0, 5); // first 5 posts
-    for (const el of articles) {
-      const text = $(el).text();
-      const image = $(el).find("img").attr("src");
-      let ocrText = "";
-
-      if (image) {
-        try {
-          const ocr = await Tesseract.recognize(image, "eng");
-          ocrText = ocr.data.text;
-        } catch (err) {
-          console.log("OCR failed for an image");
-        }
-      }
-
-      const combinedText = (text + " " + ocrText).toLowerCase();
-      if (
-        combinedText.includes("live") ||
-        combinedText.includes("gig") ||
-        combinedText.includes("band") ||
-        combinedText.includes("dj") ||
-        combinedText.includes("music")
-      ) {
-        posts.push({
-          text: text.slice(0, 200),
-          ocr: ocrText.slice(0, 100),
-          image
+    const results = [];
+    $("a").each((i, el) => {
+      const link = $(el).attr("href");
+      const title = $(el).find("h3").text();
+      const snippet = $(el).parent().find("span").text();
+      if (title && link && link.includes("facebook.com")) {
+        results.push({
+          title: title.slice(0, 120),
+          snippet: snippet.slice(0, 200),
+          link,
         });
       }
-    }
+    });
 
-    res.json({ venue: id, results: posts });
+    res.json({ venue: id, count: results.length, results: results.slice(0, 10) });
   } catch (err) {
-    res.status(500).send("Error fetching or processing page");
+    res.status(500).send("Error fetching Google results");
   }
 });
 
