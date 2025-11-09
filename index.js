@@ -4,14 +4,12 @@ const cheerio = require("cheerio");
 
 const app = express();
 
-app.get("/", (req, res) => res.send("Google-based Facebook Gig Feed is running"));
+app.get("/", (req, res) => res.send("Google-based Facebook Gig Feed v2 is running"));
 
-// Example: /facebook?id=Half+Moon+and+Seven+Stars
 app.get("/facebook", async (req, res) => {
   const id = req.query.id;
   if (!id) return res.status(400).send("Missing ?id parameter");
 
-  // Build Google search URL
   const query = `site:facebook.com "${id}" (live OR gig OR band OR music OR DJ)`;
   const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
 
@@ -26,11 +24,13 @@ app.get("/facebook", async (req, res) => {
     const $ = cheerio.load(html);
 
     const results = [];
-    $("a").each((i, el) => {
-      const link = $(el).attr("href");
-      const title = $(el).find("h3").text();
-      const snippet = $(el).parent().find("span").text();
-      if (title && link && link.includes("facebook.com")) {
+
+    // Each search result lives in a <div> containing <a> and <h3>
+    $("a h3").each((i, el) => {
+      const title = $(el).text();
+      const link = $(el).parent("a").attr("href");
+      const snippet = $(el).closest("div").parent().find("div > div > span").first().text();
+      if (link && link.includes("facebook.com")) {
         results.push({
           title: title.slice(0, 120),
           snippet: snippet.slice(0, 200),
@@ -39,8 +39,13 @@ app.get("/facebook", async (req, res) => {
       }
     });
 
-    res.json({ venue: id, count: results.length, results: results.slice(0, 10) });
+    res.json({
+      venue: id,
+      count: results.length,
+      results: results.slice(0, 10),
+    });
   } catch (err) {
+    console.error("Error fetching:", err);
     res.status(500).send("Error fetching Google results");
   }
 });
