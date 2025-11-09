@@ -1,54 +1,29 @@
-const express = require("express");
-const fetch = require("node-fetch");
-const cheerio = require("cheerio");
+import fetch from 'node-fetch';
 
-const app = express();
-
-app.get("/", (req, res) => res.send("Google-based Facebook Gig Feed v2 is running"));
-
-app.get("/facebook", async (req, res) => {
-  const id = req.query.id;
-  if (!id) return res.status(400).send("Missing ?id parameter");
-
-  const query = `site:facebook.com "${id}" (live OR gig OR band OR music OR DJ)`;
-  const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-
+export default async function handler(req, res) {
   try {
-    const response = await fetch(googleUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-      },
-    });
-    const html = await response.text();
-    const $ = cheerio.load(html);
+    const query = req.query.venue || 'Half Moon and Seven Stars';
+    const apiKey = process.env.GOOGLE_API_KEY;
+    const cx = process.env.GOOGLE_CSE_ID;
 
-    const results = [];
+    const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(query)}+site:facebook.com&key=${apiKey}&cx=${cx}`;
 
-    // Each search result lives in a <div> containing <a> and <h3>
-    $("a h3").each((i, el) => {
-      const title = $(el).text();
-      const link = $(el).parent("a").attr("href");
-      const snippet = $(el).closest("div").parent().find("div > div > span").first().text();
-      if (link && link.includes("facebook.com")) {
-        results.push({
-          title: title.slice(0, 120),
-          snippet: snippet.slice(0, 200),
-          link,
-        });
-      }
-    });
+    const response = await fetch(url);
+    const data = await response.json();
 
-    res.json({
-      venue: id,
+    const results = (data.items || []).map(item => ({
+      title: item.title,
+      link: item.link,
+      snippet: item.snippet,
+    }));
+
+    res.status(200).json({
+      venue: query,
       count: results.length,
-      results: results.slice(0, 10),
+      results,
     });
-  } catch (err) {
-    console.error("Error fetching:", err);
-    res.status(500).send("Error fetching Google results");
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    res.status(500).json({ error: 'Failed to fetch data', details: error.message });
   }
-});
-
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log("Server running on port", port));
+}
