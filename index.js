@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 
 export default async function handler(req, res) {
   try {
-    const query = req.query.venue || 'Half Moon and Seven Stars';
+    const query = req.query.venue || 'The Market Inn Sandwich';
     const apiKey = process.env.GOOGLE_API_KEY;
     const cx = process.env.GOOGLE_CSE_ID;
 
